@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import List
 import torch
 from torch import nn
@@ -56,7 +55,7 @@ class SirenT(nn.Module):
                 final_linear = nn.Linear(module0_hf, out_features[0])
                 with torch.no_grad():
                     final_linear.weight.uniform_(
-                        -np.sqrt(6 / module0_hf) / hidden_omega_0,
+                       -np.sqrt(6 / module0_hf) / hidden_omega_0,
                         np.sqrt(6 / module0_hf) / hidden_omega_0,
                     )
                 self.module0.add_module("final_linear", final_linear)
@@ -83,42 +82,40 @@ class SirenT(nn.Module):
                             omega_0=hidden_omega_0,
                         ),
                         *[
-                                SineLayer(hf, hf, is_first=False, omega_0=hidden_omega_0)
-                                for _ in range(nf - 1)
+                            SineLayer(hf, hf, is_first=False, omega_0=hidden_omega_0)
+                            for _ in range(nf - 1)
                         ],
-                        )
-                    for hf, nf, of in zip(
-                        moduleN_hf, moduleN_hl, out_features
                     )
+                    for nf, hf in zip(moduleN_hl, moduleN_hf)
                 ]
             )
-            for i,of in enumerate(out_features):
+            for i, (hf, of) in enumerate(zip(moduleN_hf, out_features)):
                 if outermost_linear:
-                    final_linear = nn.Linear(moduleN_hf[-1], of)
+                    final_linear = nn.Linear(hf, of)
                     with torch.no_grad():
                         final_linear.weight.uniform_(
-                            -np.sqrt(6 / moduleN_hf[-1]) / hidden_omega_0,
-                            np.sqrt(6 / moduleN_hf[-1]) / hidden_omega_0,
+                            -np.sqrt(6 / hf) / hidden_omega_0,
+                            np.sqrt(6 / hf) / hidden_omega_0,
                         )
                     self.moduleN[i].add_module("final_linear", final_linear)
                 else:
                     self.moduleN[i].add_module(
                         "final_sine",
                         SineLayer(
-                            moduleN_hf[-1],
+                            hf,
                             of,
                             is_first=False,
                             omega_0=hidden_omega_0,
                         ),
                     )
 
-    def forward(self, coords, clone=False):
+    def forward(self, coords, clone=False, concat=False):
         if clone:
             coords = coords.clone().detach().requires_grad_(True)
         stage0 = self.module0(coords)
         if not self.moduleN:
             return stage0
-        return torch.cat([module(stage0) for module in self.moduleN], dim=-1)
+        return torch.cat([module(stage0) for module in self.moduleN], dim=1)
 
     def freeze_all_except_moduleNidx(self, idx):
         """Freeze all parameters except those in moduleN[idx]"""
