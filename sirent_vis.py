@@ -1,47 +1,40 @@
 import torch
 import numpy as np
 from typing import List, Union
-from slar.base import SineLayer
 from slar.transform import partial_xform_vis
 from photonlib import AABox
 from sirent import SirenT
 
 
 class SirenTVis(SirenT):
-    def __init__(
-        self,
-        cfg: dict,
-        meta=None
-        ):
+    def __init__(self, cfg: dict, meta=None):
         self.config_model = cfg["model"]
 
         # Initialize SirenT
         super().__init__(**self.config_model["network"])
 
-        out_features = self.config_model["network"]["out_features"]
-        self._n_outs = (
-            sum(out_features) if isinstance(out_features, list) else out_features
-        )
+        self.out_features = self.config_model["network"]["out_features"]
+        self._n_outs = sum(self.out_features) if isinstance(self.out_features, list) else self.out_features
 
-        if self.config_model.get("ckpt_file"):
-            filepath = self.config_model.get("ckpt_file")
-            print("[SirenTVis] loading model_dict from checkpoint", filepath)
-            with open(filepath, "rb") as f:
+        ckpt_file = self.config_model.get("ckpt_file")
+        if ckpt_file:
+            print("[SirenTVis] loading model_dict from checkpoint", ckpt_file)
+            with open(ckpt_file, "rb") as f:
                 model_dict = torch.load(f, map_location="cpu")
                 self.load_model_dict(model_dict)
             return
 
-        # create meta
+        # Create meta
         if meta is not None:
             self._meta = meta
         elif "photonlib" in cfg:
             self._meta = AABox.load(cfg["photonlib"]["filepath"])
 
-        # transform functions
+        # Transform functions
         self.config_xform = cfg.get("transform_vis")
         self._xform_vis, self._inv_xform_vis = partial_xform_vis(self.config_xform)
 
-        # extensions for visibility model
+        # Extensions for visibility model
         self._init_output_scale(self.config_model)
         self._do_hardsigmoid = self.config_model.get("hardsigmoid", False)
 
@@ -192,3 +185,6 @@ class SirenTVis(SirenT):
             self.register_buffer("output_scale", output_scale, persistent=True)
         else:
             self.register_parameter("output_scale", torch.nn.Parameter(output_scale))
+
+
+
