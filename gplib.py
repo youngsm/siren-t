@@ -3,7 +3,7 @@ import numpy as np
 from photonlib.meta import VoxelMeta
 import h5py
 
-class GenPhotonLib:
+class TPhotonLib:
     def __init__(self, meta: VoxelMeta, vis: torch.Tensor, eff: float = 1.0):
         """
         Constructor
@@ -62,7 +62,7 @@ class GenPhotonLib:
     def to(self, device=None):
         if device is None or self.device == torch.device(device):
             return self
-        return GenPhotonLib(self.meta, self.vis.to(device), self.eff.to(device))
+        return TPhotonLib(self.meta, self.vis.to(device), self.eff.to(device))
 
     def visibility(self, x):
         """
@@ -141,8 +141,8 @@ class GenPhotonLib:
         return self._vis
 
     def view(self, arr):
-        shape = list(self.meta.shape.numpy()[::-1]) + [self.n_pmts, self.n_values]
-        return torch.swapaxes(arr.reshape(shape), 0, 2)
+        shape = list(self.meta.shape.numpy()[::-1]) + [-1]
+        return torch.permute(arr.reshape(shape), list(range(len(shape)-1))[::-1] + [len(shape)-1])
 
     @property
     def vis_view(self):
@@ -176,7 +176,7 @@ class GenPhotonLib:
             vis = np.asarray(vis)
 
         if vis.ndim == 5:  # Assuming (X, Y, Z, n_pmt, n_value)
-            vis = np.transpose(vis, (2, 1, 0, 3, 4)).reshape(
+            vis = np.transpose(vis, (3, 2, 1, 0, 4)).reshape(
                 len(meta), -1, vis.shape[-1]
             )
 
